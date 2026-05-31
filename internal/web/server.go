@@ -30,10 +30,11 @@ type Server struct {
 func NewServer(smtpAddr string, saver *mailpkg.Saver) *Server {
 	s := &Server{smtpAddr: smtpAddr, saver: saver}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/emails", s.handleEmails)
-	mux.HandleFunc("/api/emails/", s.handleEmailByID)
-	mux.HandleFunc("/api/events", s.handleEvents)
-	mux.HandleFunc("/api/status", s.handleStatus)
+	mux.HandleFunc("GET /api/emails", s.handleEmailsList)
+	mux.HandleFunc("DELETE /api/emails", s.handleEmailsClear)
+	mux.HandleFunc("GET /api/emails/{id}", s.handleEmailByID)
+	mux.HandleFunc("GET /api/events", s.handleEvents)
+	mux.HandleFunc("GET /api/status", s.handleStatus)
 	mux.HandleFunc("/", s.handleIndex)
 	s.mux = mux
 	return s
@@ -56,25 +57,17 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write(indexHTML)
 }
 
-func (s *Server) handleEmails(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		writeJSON(w, s.saver.List())
-	case http.MethodDelete:
-		s.saver.Clear()
-		w.WriteHeader(http.StatusNoContent)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
+func (s *Server) handleEmailsList(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, s.saver.List())
+}
+
+func (s *Server) handleEmailsClear(w http.ResponseWriter, r *http.Request) {
+	s.saver.Clear()
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleEmailByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	idStr := strings.TrimPrefix(r.URL.Path, "/api/emails/")
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return

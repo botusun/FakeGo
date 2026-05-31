@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -88,8 +88,8 @@ func (s *Saver) LoadFromDir() {
 		})
 	}
 
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].modTime.Before(files[j].modTime)
+	slices.SortFunc(files, func(a, b emlFile) int {
+		return a.modTime.Compare(b.modTime)
 	})
 
 	s.mu.Lock()
@@ -231,12 +231,7 @@ func (s *Saver) Subscribe() chan Event {
 // Unsubscribe removes ch from the subscriber list and closes it.
 func (s *Saver) Unsubscribe(ch chan Event) {
 	s.mu.Lock()
-	for i, sub := range s.subs {
-		if sub == ch {
-			s.subs = append(s.subs[:i], s.subs[i+1:]...)
-			break
-		}
-	}
+	s.subs = slices.DeleteFunc(s.subs, func(c chan Event) bool { return c == ch })
 	s.mu.Unlock()
 	close(ch)
 }
