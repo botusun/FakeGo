@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FakeGo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f1f5f9;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --primary:   #3b82f6;
+      --text:      #0f172a;
+      --muted:     #64748b;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --sidebar-w: 320px;
+      --header-h:  52px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; padding: 0 18px;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+
+    .brand {
+      display: flex; align-items: center; gap: 7px;
+      font-weight: 700; font-size: 15px; color: var(--primary);
+      user-select: none;
+    }
+    .brand svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    .divider { width: 1px; height: 20px; background: var(--border); }
+
+    .smtp-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px; border-radius: 99px;
+      font-size: 12px; font-weight: 500;
+      background: #dcfce7; color: #166534;
+    }
+    .smtp-pill .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--green);
+      animation: blink 2.4s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .spacer { flex: 1; }
+
+    .count {
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      background: var(--bg); padding: 3px 9px; border-radius: 99px;
+      border: 1px solid var(--border);
+    }
+
+    .btn-clear {
+      padding: 5px 13px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); cursor: pointer;
+      font-size: 13px; font-family: inherit; transition: all .15s;
+    }
+    .btn-clear:hover { background: #fef2f2; border-color: #fca5a5; color: var(--red); }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .layout {
+      display: flex;
+      height: 100vh;
+      padding-top: var(--header-h);
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-title {
+      padding: 10px 14px;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    #email-list {
+      flex: 1; overflow-y: auto;
+    }
+    #email-list::-webkit-scrollbar { width: 4px; }
+    #email-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .email-item {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background .1s;
+      min-width: 0;
+    }
+    .email-item:hover { background: #f8fafc; }
+    .email-item.active {
+      background: #eff6ff;
+      border-left-color: var(--primary);
+    }
+    .email-item.fresh { animation: slideDown .25s ease; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+
+    .item-subject {
+      font-weight: 600; font-size: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+    .item-from {
+      font-size: 12px; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+    .item-meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 11px; color: var(--muted);
+    }
+    .item-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65%; }
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 10px; padding: 32px; color: #cbd5e1; text-align: center;
+    }
+    .empty svg { width: 52px; height: 52px; }
+    .empty p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Content pane ────────────────────────────────────── */
+    .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+
+    .placeholder {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; color: #cbd5e1;
+    }
+    .placeholder svg { width: 72px; height: 72px; }
+    .placeholder p { font-size: 13px; color: var(--muted); }
+
+    /* ── Email detail ─────────────────────────────────────── */
+    #detail { flex: 1; overflow-y: auto; display: none; flex-direction: column; }
+
+    .detail-head {
+      padding: 22px 28px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .detail-subject { font-size: 18px; font-weight: 700; margin-bottom: 14px; line-height: 1.3; }
+
+    .meta-grid {
+      display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; align-items: baseline;
+    }
+    .meta-label {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em; white-space: nowrap;
+    }
+    .meta-value { font-size: 13px; word-break: break-all; }
+
+    .detail-body { padding: 22px 28px; flex: 1; }
+
+    .view-tabs {
+      display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+      overflow: hidden; margin-bottom: 14px;
+    }
+    .view-tab {
+      padding: 4px 14px; font-size: 12px; font-weight: 500;
+      cursor: pointer; background: var(--surface); color: var(--muted);
+      border: none; font-family: inherit; transition: all .1s;
+    }
+    .view-tab.on { background: var(--primary); color: #fff; }
+
+    #raw-pre {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+      font-size: 12.5px; line-height: 1.65;
+      white-space: pre-wrap; word-break: break-word;
+      background: #f8fafc; padding: 16px; border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    #html-frame {
+      display: none; width: 100%; min-height: 420px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+    FakeGo
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="smtp-pill">
+    <span class="dot"></span>
+    <span id="smtp-label">SMTP</span>
+  </div>
+
+  <div class="spacer"></div>
+
+  <span class="count" id="count-label">0 emails</span>
+  <button class="btn-clear" onclick="handleClear()">Clear all</button>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Inbox</div>
+    <div id="email-list">
+      <div class="empty" id="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+        </svg>
+        <p>No emails yet.<br>Point your app at this SMTP server and send a test email.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Detail pane -->
+  <main class="content">
+    <div class="placeholder" id="placeholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+      </svg>
+      <p>Select an email to read it</p>
+    </div>
+
+    <div id="detail">
+      <div class="detail-head">
+        <div class="detail-subject" id="d-subject"></div>
+        <div class="meta-grid">
+          <span class="meta-label">From</span><span class="meta-value" id="d-from"></span>
+          <span class="meta-label">To</span><span class="meta-value" id="d-to"></span>
+          <span class="meta-label">Date</span><span class="meta-value" id="d-date"></span>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div class="view-tabs" id="view-tabs" style="display:none;">
+          <button class="view-tab on" onclick="showRaw(this)">Raw</button>
+          <button class="view-tab" onclick="showHtml(this)">Rendered</button>
+        </div>
+        <pre id="raw-pre"></pre>
+        <iframe id="html-frame" sandbox="allow-popups"></iframe>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────
+let emails = [];        // summaries (no content)
+let selectedId = null;
+let es = null;          // EventSource
+let unread = new Set(); // IDs of SSE-received emails not yet opened
+
+// ── Init ───────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadStatus(), loadEmails()]);
+  connectSSE();
+}
+
+// ── API calls ──────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    document.getElementById('smtp-label').textContent = 'SMTP ' + s.smtp_addr;
+  } catch {}
+}
+
+async function loadEmails() {
+  try {
+    const r = await fetch('/api/emails');
+    emails = await r.json();
+    renderList();
+  } catch (e) {
+    console.error('loadEmails:', e);
+  }
+}
+
+async function openEmail(id) {
+  selectedId = id;
+  unread.delete(id);
+  updateTitle();
+  refreshActiveItem();
+  try {
+    const r = await fetch('/api/emails/' + id);
+    const email = await r.json();
+    renderDetail(email);
+  } catch (e) {
+    console.error('openEmail:', e);
+  }
+}
+
+async function handleClear() {
+  if (!confirm('Delete all received emails?')) return;
+  await fetch('/api/emails', { method: 'DELETE' });
+  // SSE clear event will arrive shortly; reset locally too for instant feedback
+  emails = [];
+  selectedId = null;
+  unread.clear();
+  renderList();
+  hideDetail();
+  updateTitle();
+}
+
+// ── SSE ────────────────────────────────────────────────────
+function connectSSE() {
+  if (es) es.close();
+  es = new EventSource('/api/events');
+
+  es.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'ping') return;
+
+    if (msg.type === 'clear') {
+      emails = [];
+      selectedId = null;
+      unread.clear();
+      renderList();
+      hideDetail();
+      updateTitle();
+      return;
+    }
+
+    if (msg.type === 'email') {
+      msg._fresh = true;
+      emails.unshift(msg);
+      unread.add(msg.id);
+      renderList(msg.id);
+      updateTitle();
+    }
+  };
+
+  es.onerror = () => setTimeout(connectSSE, 3000);
+}
+
+// ── Rendering ──────────────────────────────────────────────
+function renderList(freshId) {
+  const list = document.getElementById('email-list');
+  updateCount();
+
+  if (emails.length === 0) {
+    list.innerHTML = `
+      <div class="empty" id="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+        </svg>
+        <p>No emails yet.<br>Point your app at this SMTP server and send a test email.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = emails.map(e => {
+    const active = e.id === selectedId ? ' active' : '';
+    const fresh  = e.id === freshId   ? ' fresh'  : '';
+    return `<div class="email-item${active}${fresh}" data-id="${e.id}" onclick="openEmail(${e.id})">
+      <div class="item-subject">${esc(e.subject || '(no subject)')}</div>
+      <div class="item-from">${esc(e.from)}</div>
+      <div class="item-meta">
+        <span class="item-to">&#8594; ${esc(e.to)}</span>
+        <span>${reltime(e.received_at)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function refreshActiveItem() {
+  document.querySelectorAll('.email-item').forEach(el => {
+    el.classList.toggle('active', Number(el.dataset.id) === selectedId);
+  });
+}
+
+function renderDetail(email) {
+  document.getElementById('placeholder').style.display = 'none';
+
+  const detail = document.getElementById('detail');
+  detail.style.display = 'flex';
+  detail.style.flexDirection = 'column';
+
+  document.getElementById('d-subject').textContent = email.subject || '(no subject)';
+  document.getElementById('d-from').textContent    = email.from;
+  document.getElementById('d-to').textContent      = email.to;
+  const d = new Date(email.received_at);
+  const pad = n => String(n).padStart(2, '0');
+  const iso = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  document.getElementById('d-date').textContent = iso;
+
+  const content  = email.content  || '';
+  const htmlBody = email.html_body || '';
+
+  const tabs  = document.getElementById('view-tabs');
+  const pre   = document.getElementById('raw-pre');
+  const frame = document.getElementById('html-frame');
+
+  pre.textContent   = content;
+  pre.style.display = '';
+
+  if (htmlBody) {
+    tabs.style.display = '';
+    frame.srcdoc       = htmlBody;  // srcdoc works inside sandbox; blob URLs do not
+    frame.style.display = 'none';
+    // reset to Raw tab
+    tabs.querySelectorAll('.view-tab').forEach((t, i) => t.classList.toggle('on', i === 0));
+  } else {
+    tabs.style.display  = 'none';
+    frame.style.display = 'none';
+  }
+}
+
+function showRaw(btn) {
+  toggle('.view-tab', btn);
+  document.getElementById('raw-pre').style.display   = '';
+  document.getElementById('html-frame').style.display = 'none';
+}
+
+function showHtml(btn) {
+  toggle('.view-tab', btn);
+  document.getElementById('raw-pre').style.display   = 'none';
+  document.getElementById('html-frame').style.display = 'block';
+}
+
+function toggle(selector, active) {
+  document.querySelectorAll(selector).forEach(el => el.classList.toggle('on', el === active));
+}
+
+function hideDetail() {
+  document.getElementById('detail').style.display     = 'none';
+  document.getElementById('placeholder').style.display = '';
+}
+
+// ── Helpers ────────────────────────────────────────────────
+function updateCount() {
+  const n = emails.length;
+  document.getElementById('count-label').textContent = n === 1 ? '1 email' : n + ' emails';
+}
+
+function updateTitle() {
+  document.title = unread.size > 0 ? `(${unread.size}) FakeGo` : 'FakeGo';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function reltime(ts) {
+  const diff = (Date.now() - new Date(ts)) / 1000;
+  if (diff < 5)    return 'just now';
+  if (diff < 60)   return Math.floor(diff) + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(ts).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+init();
+</script>
+</body>
+</html>
