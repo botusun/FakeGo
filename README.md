@@ -58,4 +58,4 @@ go build -o fakego .
 
 ## Requirements
 
-- Go 1.21+
+- Go 1.26+
