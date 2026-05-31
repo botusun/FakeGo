@@ -1,13 +1,14 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	flag "github.com/spf13/pflag"
 
 	"fakego/internal/mail"
 	"fakego/internal/smtp"
@@ -24,18 +25,12 @@ func main() {
 		webPort      int
 	)
 
-	flag.IntVar(&port, "port", 25, "SMTP port number")
-	flag.IntVar(&port, "p", 25, "SMTP port number")
-	flag.StringVar(&bindAddr, "bind-address", "", "IP address or hostname to bind to (all interfaces if not specified)")
-	flag.StringVar(&bindAddr, "a", "", "IP address or hostname to bind to")
-	flag.StringVar(&outputDir, "output-dir", "received-emails", "directory where received emails are saved")
-	flag.StringVar(&outputDir, "o", "received-emails", "directory where received emails are saved")
-	flag.StringVar(&relayDomains, "relay-domains", "", "comma-separated domains to accept relay for (all domains if not specified)")
-	flag.StringVar(&relayDomains, "r", "", "comma-separated relay domains")
-	flag.BoolVar(&memoryMode, "memory-mode", false, "disable saving emails to disk")
-	flag.BoolVar(&memoryMode, "m", false, "disable saving emails to disk")
-	flag.IntVar(&webPort, "web-port", 1080, "port for the web UI")
-	flag.IntVar(&webPort, "w", 1080, "port for the web UI")
+	flag.IntVarP(&port, "port", "p", 25, "SMTP port number")
+	flag.StringVarP(&bindAddr, "bind-address", "a", "", "IP address or hostname to bind to (all interfaces if not specified)")
+	flag.StringVarP(&outputDir, "output-dir", "o", "received-emails", "directory where received emails are saved")
+	flag.StringVarP(&relayDomains, "relay-domains", "r", "", "comma-separated domains to accept relay for (all domains if not specified)")
+	flag.BoolVarP(&memoryMode, "memory-mode", "m", false, "disable saving emails to disk")
+	flag.IntVarP(&webPort, "web-port", "w", 1080, "port for the web UI")
 	flag.Parse()
 
 	var domains []string
